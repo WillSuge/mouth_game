@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mouth Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">Mouth Tracker</div>
+      <nav class="top-nav">
+        <button class="nav-btn" data-screen="home">Home</button>
+        <button class="nav-btn" data-screen="new-game">New Game</button>
+        <button class="nav-btn" data-screen="stats">Stats</button>
+      </nav>
+    </header>
+
+    <main class="screen-container">
+      <section id="home" class="screen active">
+        <div class="card">
+          <h1>Welcome</h1>
+          <p>
+            Track games of Mouth, manage players, and see who owns left or right.
+          </p>
+          <div class="actions">
+            <button id="home-start" class="primary">Start New Game</button>
+            <button id="home-stats">View Stats</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="new-game" class="screen">
+        <div class="card">
+          <h2>Start a New Game</h2>
+          <div class="team-select">
+            <div class="team-card">
+              <h3>Team A</h3>
+              <label>
+                Left
+                <select id="team-a-left"></select>
+              </label>
+              <label>
+                Right
+                <select id="team-a-right"></select>
+              </label>
+            </div>
+            <div class="team-card">
+              <h3>Team B</h3>
+              <label>
+                Left
+                <select id="team-b-left"></select>
+              </label>
+              <label>
+                Right
+                <select id="team-b-right"></select>
+              </label>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="start-game" class="primary">Start Game</button>
+            <button id="new-game-cancel">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="game" class="screen">
+        <div class="game-layout">
+          <div class="game-sidebar">
+            <div class="card">
+              <h2>Game</h2>
+              <div id="game-meta" class="meta"></div>
+              <div class="actions">
+                <button id="undo-btn">Undo</button>
+                <button id="redo-btn">Redo</button>
+                <button id="swap-a">Swap Team A</button>
+                <button id="swap-b">Swap Team B</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Game Status</h3>
+              <div id="game-status"></div>
+              <button id="finish-game" class="primary" disabled>
+                Finish Game
+              </button>
+            </div>
+          </div>
+
+          <div class="table-area">
+            <div class="table">
+              <div class="table-side" id="team-a-cups">
+                <div class="side-label">Team A Cups</div>
+                <div class="cup-grid" data-team="A"></div>
+              </div>
+              <div class="table-center">Table</div>
+              <div class="table-side" id="team-b-cups">
+                <div class="side-label">Team B Cups</div>
+                <div class="cup-grid" data-team="B"></div>
+              </div>
+            </div>
+            <div id="cup-actions" class="cup-actions hidden">
+              <button data-action="sink">Sink</button>
+              <button data-action="half">Half</button>
+              <button data-action="mental">Mental Error</button>
+              <div id="mental-subaction" class="mental-subaction hidden">
+                <span class="mental-label">Mental as:</span>
+                <button data-mental="sink">Sink</button>
+                <button data-mental="half">Half</button>
+              </div>
+              <div class="cup-attr">
+                <span class="cup-attr-label">Who hit it?</span>
+                <div id="cup-player-buttons" class="cup-player-buttons"></div>
+              </div>
+              <button data-action="cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div class="card player-actions-bar">
+          <h3>Player Actions</h3>
+          <div id="player-actions" class="player-actions-horizontal"></div>
+        </div>
+      </section>
+
+      <section id="stats" class="screen">
+        <div class="card">
+          <h2>Players</h2>
+          <div class="add-player">
+            <input id="player-name" type="text" placeholder="New player name" />
+            <button id="add-player">Add Player</button>
+            <button id="reset-stats" class="danger">Reset All Stats</button>
+          </div>
+          <div id="player-list"></div>
+        </div>
+        <div class="card">
+          <h2>Games</h2>
+          <div id="game-history"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
+
