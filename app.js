@@ -1,11 +1,11 @@
 const STORAGE_KEY = "mouth-tracker";
 const DEFAULT_ELO = 1000;
 const CUP_LAYOUT = [1, 4, 3, 2, 1];
-const SUPABASE_URL = "PASTE_SUPABASE_URL_HERE";
-const SUPABASE_KEY = "PASTE_SUPABASE_ANON_KEY_HERE";
+const SUPABASE_URL = "https://bpzusrjjgkbazzhhvxot.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwenVzcmpqZ2tiYXp6aGh2eG90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNzQ3NzAsImV4cCI6MjA4NDk1MDc3MH0.QWSoHrpaa6L80iUwwyn42iSY8u_g--nNOoFbSifAHxQ";
 const REMOTE_ENABLED =
-  SUPABASE_URL !== "PASTE_SUPABASE_URL_HERE" &&
-  SUPABASE_KEY !== "PASTE_SUPABASE_ANON_KEY_HERE";
+  SUPABASE_URL !== "https://bpzusrjjgkbazzhhvxot.supabase.co" &&
+  SUPABASE_KEY !== "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwenVzcmpqZ2tiYXp6aGh2eG90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNzQ3NzAsImV4cCI6MjA4NDk1MDc3MH0.QWSoHrpaa6L80iUwwyn42iSY8u_g--nNOoFbSifAHxQ";
 
 const screens = Array.from(document.querySelectorAll(".screen"));
 const navButtons = document.querySelectorAll(".nav-btn");
@@ -228,6 +228,62 @@ function mapGameToDb(game) {
   };
 }
 
+function getPercentile(values, percentile) {
+  if (!values.length) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const index = (sorted.length - 1) * percentile;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower];
+  const weight = index - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+}
+
+function getPopulationPercentiles() {
+  const cupsPerGameValues = state.players
+    .filter((player) => player.stats.games > 0)
+    .map((player) => player.stats.cups / player.stats.games)
+    .filter((value) => Number.isFinite(value));
+  const savesPerGameValues = state.players
+    .filter((player) => player.stats.games > 0)
+    .map((player) => player.stats.saves / player.stats.games)
+    .filter((value) => Number.isFinite(value));
+  return {
+    B16: getPercentile(cupsPerGameValues, 0.9),
+    B17: getPercentile(savesPerGameValues, 0.9),
+  };
+}
+
+function computeScore(inputs, population) {
+  const { L, I, C, K } = inputs;
+  const { B16, B17 } = population;
+  if (
+    !Number.isFinite(L) ||
+    !Number.isFinite(I) ||
+    !Number.isFinite(C) ||
+    !Number.isFinite(K) ||
+    !Number.isFinite(B16) ||
+    !Number.isFinite(B17) ||
+    C <= 0 ||
+    B16 <= 0 ||
+    B17 <= 0
+  ) {
+    return null;
+  }
+  const B15 = 0.9;
+  const B18 = Math.atanh(B15) / B16;
+  const B19 = Math.atanh(B15) / B17;
+  const score =
+    16.66 +
+    50 * Math.tanh(B18 * L) +
+    33.33 * Math.tanh(B19 * (I / C)) -
+    16.66 * Math.tanh(1.2 * (K / C));
+  if (!Number.isFinite(score)) {
+    return null;
+  }
+  return score;
+}
+
 function setScreen(screenId) {
   screens.forEach((screen) => {
     screen.classList.toggle("active", screen.id === screenId);
@@ -429,6 +485,7 @@ function renderPlayerActions() {
     return;
   }
   playerActions.innerHTML = "";
+  const population = getPopulationPercentiles();
   const players = Object.values(currentGame.teams)
     .flatMap((team) => [team.leftId, team.rightId])
     .map((id) => getPlayerById(id))
@@ -436,14 +493,27 @@ function renderPlayerActions() {
 
   players.forEach((player) => {
     const stats = currentGame.playerStats[player.id];
+    const totalCups = player.stats.cups + stats.cups;
+    const totalGames = player.stats.games + 1;
+    const totalMentalErrors = (player.stats.mentalErrors || 0) + stats.mentalErrors;
+    const dprScore = computeScore(
+      {
+        L: totalGames ? totalCups / totalGames : NaN,
+        I: totalCups,
+        C: totalGames,
+        K: totalMentalErrors,
+      },
+      population
+    );
     const container = document.createElement("div");
     container.className = "player-card";
     container.innerHTML = `
-      <h4>${player.name}</h4>
+      <h4>${player.name} · DPR ${dprScore === null ? "N/A" : dprScore.toFixed(2)}</h4>
       <div class="stat-line">Cups: ${stats.cups.toFixed(1)}</div>
       <div class="stat-line">Saves: ${stats.saves}</div>
       <div class="stat-line">Aces: ${stats.aces}</div>
       <div class="stat-line">Mental Errors: ${stats.mentalErrors || 0}</div>
+      ${dprScore === null ? `<div class="stat-line">DPR pending (needs more games)</div>` : ""}
       <div class="actions player-actions">
         <div>
           <button data-action="save">+Save</button>
@@ -694,6 +764,7 @@ function updateTeamPlayers(playerIds, result, expected, baseK) {
 function renderStats() {
   renderPlayerOptions();
   playerList.innerHTML = "";
+  const population = getPopulationPercentiles();
   state.players.forEach((player) => {
     const leftGames = player.stats.left.games || 0;
     const rightGames = player.stats.right.games || 0;
@@ -711,6 +782,15 @@ function renderStats() {
     const errorsPerGame = player.stats.games
       ? ((player.stats.mentalErrors || 0) / player.stats.games).toFixed(2)
       : "0.00";
+    const score = computeScore(
+      {
+        L: player.stats.games ? player.stats.cups / player.stats.games : NaN,
+        I: player.stats.cups,
+        C: player.stats.games,
+        K: player.stats.mentalErrors || 0,
+      },
+      population
+    );
     const card = document.createElement("div");
     card.className = "player-card";
     card.innerHTML = `
@@ -719,6 +799,7 @@ function renderStats() {
       <div class="stat-line">Games: ${player.stats.games} · Wins: ${player.stats.wins}</div>
       <div class="stat-line">Cups/Game: ${cupsPerGame} · Saves/Game: ${savesPerGame} · Aces/Game: ${acesPerGame}</div>
       <div class="stat-line">Mental Errors/Game: ${errorsPerGame}</div>
+      <div class="stat-line">DPR: ${score === null ? "N/A (needs more games)" : score.toFixed(2)}</div>
       <div class="stat-line">Left Win%: ${leftWinRate} · Right Win%: ${rightWinRate}</div>
     `;
     playerList.appendChild(card);
