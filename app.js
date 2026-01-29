@@ -37,6 +37,7 @@ const addPlayerButton = document.getElementById("add-player");
 const resetStatsButton = document.getElementById("reset-stats");
 const playerList = document.getElementById("player-list");
 const gameHistory = document.getElementById("game-history");
+const storageStatus = document.getElementById("storage-status");
 
 let state = { players: [], games: [] };
 let currentGame = null;
@@ -69,6 +70,18 @@ function loadLocalState() {
 
 function saveLocalState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function setStorageStatus(mode) {
+  if (!storageStatus) return;
+  storageStatus.classList.remove("shared", "local");
+  if (mode === "shared") {
+    storageStatus.textContent = "Storage: Shared";
+    storageStatus.classList.add("shared");
+  } else {
+    storageStatus.textContent = "Storage: Local";
+    storageStatus.classList.add("local");
+  }
 }
 
 async function loadRemoteState() {
@@ -917,8 +930,10 @@ async function initApp() {
   supabaseClient = initSupabase();
   if (supabaseClient) {
     state = await loadRemoteState();
+    setStorageStatus("shared");
   } else {
     state = loadLocalState();
+    setStorageStatus("local");
   }
   renderStats();
   setScreen("home");
